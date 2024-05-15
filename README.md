@@ -1,6 +1,6 @@
 
 <h1>
-    socpowerbud 
+    socpowerbud
     <a href="https://github.com/dehydratedpotato/socpowerbud/releases">
         <img alt="Releases" src="https://img.shields.io/github/release/BitesPotatoBacks/SocPowerBuddy.svg"/>
     </a>
@@ -15,13 +15,11 @@
     </a>
 </h1>
 
-Sudoless utility to profile current frequency, cycles, voltage, residency, and more on Apple Silicon!
+Sudoless utility to profile average frequency, voltage, residency, and more on Apple Silicon!
 
 - **Table of contents**
   - **[Project Deets](#project-deets)**
-    - [Wat it do?](#wat-it-do)
-    - [Why it do?](#why-it-do)
-    - [Example Output](#example-output)
+  - **[Example Output](#example-output)**
   - [Features](#features)
   - **[Installation, Usage, and Making](#installation-usage-and-making)**
     - [Install using Homebrew](#install-using-homebrew)
@@ -34,151 +32,208 @@ Sudoless utility to profile current frequency, cycles, voltage, residency, and m
 ___
 
 ## Project Deets
-### Wat it do
-SocPowerBuddy samples counter values from the IOReport and returns formatted results for various metrics! It's written in Objective-C because NS types made things easier, it could be better if I rewrote it in plain C (but I've got better projects to work on then to spend time on this one).
+This tool samples counter values from the IOReport and returns formatted results for various metrics. It's written in Objective-C because NS types made things easier, but it's starting to get all mixed around and junk from a bunch of half-refactoring...At least it's getting more effecient over time or something? Idk. Activity on this project is kind of random. Ive got other things in life to do so fixes may be a bit slow.
 
-It is based on reverse engineering `powermetrics`, and reports every statistic offered by `powermetrics -s cpu_power,gpu_power` (see [full metric list](#features) and [example output](#example)), but without needing `sudo`! I've also added some added some other metrics, like per-core power and voltage :smile:
-
-***Please check compatibility with your silicon before use, If you want a good experience (see [compatibility notes](#compatibility-notes))***
-
-### Why it do
-Because needing to be system admin in order to monitor Apple Silicon frequencies is dumb (yeah, I'm looking at you, `powermetrics`). So here you go! No administrative privileges needed! Yaaay.
+It is based on reverse engineering `powermetrics`, and reports pretty much every statistic offered by `powermetrics -s cpu_power,gpu_power`, plus some extras here and there (see [full metric list](#features) and [example output](#example))... but it doesn't need `sudo` to run. Because, uh, needing to be system admin in order to monitor Apple Silicon frequencies is dumb (yeah, I'm looking at you, `powermetrics`). So here you go! No administrative privileges needed! Yaaay.
 
 ### Example Output
-**Note:** The following is a big, nice, juicy output of `socpwrbud -a` running on a Macmini9,1 (cause I'm a pleb who didn't buy a M1 pro).
+**Note:** The following is a complete output of `socpwrbud -a` running on a M2 Pro 16" Macbook Pro.
 <details>
 
-<summary>Expand Example to see!</summary>
+<summary>Expand Example to see...warning, it's a large one</summary>
 
 ```
-Apple M1 T8103 (Sample 1):
+Profiling Apple M3 Pro (T6030)...
 
-	4-Core Icestorm ECPU:
+Integrated Graphics 
+    Average frequency: 609 mhz
+    Average voltage:   692 mv
+    Active residency:  2.46 %
+    Idle residency:    97.54 %
 
-		Supposed Cycles Spent:  1318404262
-		Instructions Retired:   1.66480e+09
-		Instructions Per-Clock: 1.26274
+    DVFS distribution:
+        338 MHz (655 mv): 46.49%
+        796 MHz (715 mv): 33.53%
+        924 MHz (740 mv): 19.98%
 
-		Power Consumption: 65.89 mW
+6-Core ECPU
+    Average frequency: 2079 mhz
+    Average voltage:   957 mv
+    Active residency:  28.44 %
+    Idle residency:    71.56 %
 
-		Active Voltage:    825.13 mV
-		Active Frequency:  1323.49 MHz
+    DVFS distribution:
+        744 MHz (790 mv): 33.40%
+        2748 MHz (1040 mv): 66.60%
 
-		Active Residency:  29.4%
-		Idle Residency:    70.6%
-		Dvfm Distribution: 972MHz, 771mV: 52.64% (1086ms)   1332MHz, 800mV: 19.08% (394ms)   1704MHz, 887mV: 7.24% (149ms)   2064MHz, 962mV: 21.05% (434ms)   
+    Core #0
+        Average frequency: 2110 mhz
+        Average voltage:   960 mv
+        Active residency:  19.12 %
+        Idle residency:    80.88 %
 
-		Core 0:
-			Power Consumption: 14.53 mW
-			Active Voltage:    831.05 mV
-			Active Frequency:  1356.95 MHz
-			Active Residency:  15.6%
-			Idle Residency:    84.4%
-			Dvfm Distribution: 972MHz, 771mV: 49.64% (1025ms)   1332MHz, 800mV: 18.59% (384ms)   1704MHz, 887mV: 8.02% (166ms)   2064MHz, 962mV: 23.75% (490ms)   
-		Core 1:
-			Power Consumption: 13.57 mW
-			Active Voltage:    831.42 mV
-			Active Frequency:  1361.03 MHz
-			Active Residency:  14.9%
-			Idle Residency:    85.1%
-			Dvfm Distribution: 972MHz, 771mV: 48.81% (1007ms)   1332MHz, 800mV: 20.44% (422ms)   1704MHz, 887mV: 5.65% (117ms)   2064MHz, 962mV: 25.10% (518ms)   
-		Core 2:
-			Power Consumption: 12.11 mW
-			Active Voltage:    838.65 mV
-			Active Frequency:  1397.5 MHz
-			Active Residency:  12.1%
-			Idle Residency:    87.9%
-			Dvfm Distribution: 972MHz, 771mV: 47.09% (972ms)   1332MHz, 800mV: 17.68% (365ms)   1704MHz, 887mV: 6.34% (131ms)   2064MHz, 962mV: 28.88% (596ms)   
-		Core 3:
-			Power Consumption: 7.75 mW
-			Active Voltage:    845.17 mV
-			Active Frequency:  1424.25 MHz
-			Active Residency:  9.0%
-			Idle Residency:    91.0%
-			Dvfm Distribution: 972MHz, 771mV: 48.17% (994ms)   1332MHz, 800mV: 11.96% (247ms)   1704MHz, 887mV: 7.28% (150ms)   2064MHz, 962mV: 32.60% (673ms)   
+        DVFS distribution:
+            744 MHz (790 mv): 31.84%
+            2748 MHz (1040 mv): 68.16%
 
-	4-Core Firestorm PCPU:
+    Core #1
+        Average frequency: 2171 mhz
+        Average voltage:   968 mv
+        Active residency:  9.73 %
+        Idle residency:    90.27 %
 
-		Supposed Cycles Spent:  3590801722
-		Instructions Retired:   1.37992e+10
-		Instructions Per-Clock: 3.84294
+        DVFS distribution:
+            744 MHz (790 mv): 28.79%
+            2748 MHz (1040 mv): 71.21%
 
-		Power Consumption: 1912.79 mW
+    Core #2
+        Average frequency: 1808 mhz
+        Average voltage:   923 mv
+        Active residency:  8.90 %
+        Idle residency:    91.10 %
 
-		Active Voltage:    1051.20 mV
-		Active Frequency:  3003.88 MHz
+        DVFS distribution:
+            744 MHz (790 mv): 46.89%
+            2748 MHz (1040 mv): 53.11%
 
-		Active Residency:  53.3%
-		Idle Residency:    46.7%
-		Dvfm Distribution: 600MHz, 781mV: 0.20% (4ms)   828MHz, 781mV: 0.70% (15ms)   1056MHz, 781mV: 1.85% (38ms)   1284MHz, 800mV: 2.17% (45ms)   1500MHz, 812mV: 1.62% (33ms)   1728MHz, 831mV: 1.62% (34ms)   1956MHz, 865mV: 1.63% (34ms)   2184MHz, 909mV: 1.06% (22ms)   2388MHz, 953mV: 0.95% (20ms)   2592MHz, 1003mV: 0.36% (7ms)   2772MHz, 1053mV: 0.72% (15ms)   2988MHz, 1081mV: 0.36% (7ms)   3096MHz, 1081mV: 0.03% (1ms)   3144MHz, 1081mV: 0.43% (9ms)   3204MHz, 1081mV: 86.30% (1781ms)   
+    Core #3
+        Average frequency: 1920 mhz
+        Average voltage:   937 mv
+        Active residency:  2.83 %
+        Idle residency:    97.17 %
 
-		Core 4:
-			Power Consumption: 1038.76 mW
-			Active Voltage:    1034.99 mV
-			Active Frequency:  2895.56 MHz
-			Active Residency:  33.9%
-			Idle Residency:    66.1%
-			Dvfm Distribution: 600MHz, 781mV: 0.31% (6ms)   828MHz, 781mV: 1.07% (22ms)   1056MHz, 781mV: 2.68% (55ms)   1284MHz, 800mV: 3.42% (71ms)   1500MHz, 812mV: 2.54% (52ms)   1728MHz, 831mV: 2.55% (53ms)   1956MHz, 865mV: 2.56% (53ms)   2184MHz, 909mV: 1.65% (34ms)   2388MHz, 953mV: 1.48% (31ms)   2592MHz, 1003mV: 0.56% (12ms)   2772MHz, 1053mV: 1.13% (23ms)   2988MHz, 1081mV: 0.56% (12ms)   3096MHz, 1081mV: 0.05% (1ms)   3144MHz, 1081mV: 0.67% (14ms)   3204MHz, 1081mV: 78.77% (1626ms)   
-		Core 5:
-			Power Consumption: 687.02 mW
-			Active Voltage:    1044.88 mV
-			Active Frequency:  2970.58 MHz
-			Active Residency:  21.5%
-			Idle Residency:    78.5%
-			Dvfm Distribution: 600MHz, 781mV: 0.02% (0ms)   828MHz, 781mV: 0.25% (5ms)   1056MHz, 781mV: 2.36% (49ms)   1284MHz, 800mV: 2.66% (55ms)   1500MHz, 812mV: 2.22% (46ms)   1728MHz, 831mV: 2.20% (45ms)   1956MHz, 865mV: 2.41% (50ms)   2184MHz, 909mV: 1.72% (35ms)   2388MHz, 953mV: 0.81% (17ms)   2592MHz, 1003mV: 0.11% (2ms)   2988MHz, 1081mV: 0.01% (0ms)   3096MHz, 1081mV: 0.01% (0ms)   3204MHz, 1081mV: 85.22% (1759ms)   
-		Core 6:
-			Power Consumption: 23.26 mW
-			Active Voltage:    836.13 mV
-			Active Frequency:  1626.58 MHz
-			Active Residency:  3.1%
-			Idle Residency:    96.9%
-			Dvfm Distribution: 600MHz, 781mV: 0.19% (4ms)   828MHz, 781mV: 0.54% (11ms)   1056MHz, 781mV: 15.96% (329ms)   1284MHz, 800mV: 18.74% (387ms)   1500MHz, 812mV: 15.62% (322ms)   1728MHz, 831mV: 15.51% (320ms)   1956MHz, 865mV: 15.60% (322ms)   2184MHz, 909mV: 11.87% (245ms)   2388MHz, 953mV: 5.66% (117ms)   3204MHz, 1081mV: 0.31% (6ms)   
-		Core 7:
-			Power Consumption: 60.56 mW
-			Active Voltage:    895.57 mV
-			Active Frequency:  2009.28 MHz
-			Active Residency:  4.0%
-			Idle Residency:    96.0%
-			Dvfm Distribution: 828MHz, 781mV: 0.17% (4ms)   1056MHz, 781mV: 12.91% (266ms)   1284MHz, 800mV: 14.16% (292ms)   1500MHz, 812mV: 11.83% (244ms)   1728MHz, 831mV: 11.81% (244ms)   1956MHz, 865mV: 11.79% (243ms)   2184MHz, 909mV: 8.32% (172ms)   2388MHz, 953mV: 4.13% (85ms)   3204MHz, 1081mV: 24.89% (514ms)   
+        DVFS distribution:
+            744 MHz (790 mv): 41.30%
+            2748 MHz (1040 mv): 58.70%
 
-	8-Core Integrated Graphics:
+    Core #4
+        Average frequency: 2038 mhz
+        Average voltage:   951 mv
+        Active residency:  2.01 %
+        Idle residency:    97.99 %
 
-		Power Consumption: 2.42 mW
+        DVFS distribution:
+            744 MHz (790 mv): 35.43%
+            2748 MHz (1040 mv): 64.57%
 
-		Active Voltage:    627.71 mV
-		Active Frequency:  711.288 MHz
+    Core #5
+        Average frequency: 2061 mhz
+        Average voltage:   954 mv
+        Active residency:  1.13 %
+        Idle residency:    98.87 %
 
-		Active Residency:  2.6%
-		Idle Residency:    97.4%
-		Dvfm Distribution: 396MHz, 400mV: 2.69% (56ms)   720MHz, 634mV: 97.31% (2008ms)   
+        DVFS distribution:
+            744 MHz (790 mv): 34.27%
+            2748 MHz (1040 mv): 65.73%
+
+6-Core PCPU
+    Average frequency: 2057 mhz
+    Average voltage:   897 mv
+    Active residency:  12.09 %
+    Idle residency:    87.91 %
+
+    DVFS distribution:
+        696 MHz (790 mv): 42.27%
+        2424 MHz (890 mv): 1.65%
+        2988 MHz (960 mv): 49.49%
+        3420 MHz (1090 mv): 3.64%
+        4056 MHz (1150 mv): 2.94%
+
+    Core #0
+        Average frequency: 2033 mhz
+        Average voltage:   890 mv
+        Active residency:  4.61 %
+        Idle residency:    95.39 %
+
+        DVFS distribution:
+            696 MHz (790 mv): 41.27%
+            2424 MHz (890 mv): 2.99%
+            2988 MHz (960 mv): 53.91%
+            3420 MHz (1090 mv): 1.81%
+            4056 MHz (1150 mv): 0.01%
+
+    Core #1
+        Average frequency: 1974 mhz
+        Average voltage:   889 mv
+        Active residency:  7.62 %
+        Idle residency:    92.38 %
+
+        DVFS distribution:
+            696 MHz (790 mv): 44.88%
+            2424 MHz (890 mv): 1.23%
+            2988 MHz (960 mv): 49.61%
+            3420 MHz (1090 mv): 3.78%
+            4056 MHz (1150 mv): 0.50%
+
+    Core #2
+        Average frequency: 3122 mhz
+        Average voltage:   1031 mv
+        Active residency:  0.20 %
+        Idle residency:    99.80 %
+
+        DVFS distribution:
+            696 MHz (790 mv): 5.59%
+            2424 MHz (890 mv): 1.67%
+            2988 MHz (960 mv): 30.18%
+            3420 MHz (1090 mv): 62.37%
+            4056 MHz (1150 mv): 0.19%
+
+    Core #3
+        Average frequency: 4006 mhz
+        Average voltage:   1141 mv
+        Active residency:  0.35 %
+        Idle residency:    99.65 %
+
+        DVFS distribution:
+            2988 MHz (960 mv): 4.69%
+            4056 MHz (1150 mv): 95.31%
+
+    Core #4
+        Average frequency: 0 mhz
+        Average voltage:   0 mv
+        Active residency:  0.00 %
+        Idle residency:    100.00 %
+
+        DVFS distribution:
+
+    Core #5
+        Average frequency: 3228 mhz
+        Average voltage:   1032 mv
+        Active residency:  0.04 %
+        Idle residency:    99.96 %
+
+        DVFS distribution:
+            2988 MHz (960 mv): 44.42%
+            3420 MHz (1090 mv): 55.58%
 ```
 
 </details>
 
 # Features
 
-The following is sampled per-cluster and is available for all sampled compute units!
-- CPU/GPU
-	- Active and Idle Residencies
-	- Active Frequencies and Voltage
-	- DVFS Distribution and Time Spent
-	- Power Consumption
-- CPU Only
-	- Total (cluster) Instructions Retired and Per-cylce
-	- Total (cluster) Supposed CPU Cycles Spent
-	- Per-core metrics
-	- Micro architecture names
+The following metrics are available sampled unit per-cluster:
+- Active and Idle Residencies
+- Active Frequencies and Voltage
+- DVFS Distribution 
+- ~~Power Consumption~~ (missing for now)
+- ~~Micro architecture names~~ (missing for now)
 
-I would love to support ANE stuff too but thats just a false dream encouraged by compiled remnants in `powermetrics`... 
+Per-core metrics of the same are available for the CPUs.
+
+I would love to support ANE stuff, there are remnants in `powermetrics` for gettig that data, but no real keys in IOReport for them. 
 
 # Installation, Usage, and Making
-**Note:** Tool usage is listed by `socpwrbud --help`!
+**Note:** Tool usage is listed by `socpwrbud -h`, or `--help` if you're a verbose kinda person.
 
 ### Install using Homebrew
+Let me get back to you on that. 
+
+<!--
 1. If you dont have Hombrew, then what the heck? [Install it already, geez](https://brew.sh/index_ko).
 2. Add my tap using `brew tap dehydratedpotato/tap`
 3. Install the tool with `brew install socpwrbud`
 4. Run `socpwrbud`! (dont ask why "power" is shortened for the binary name)
+-->
 
 ### Install manually
 1. Download the bin from [latest release](https://github.com/dehydratedpotato/socpowerbud/releases).
@@ -190,19 +245,11 @@ Xcode proj is in source but you can build with `make` if you so desire...
 ___
 
 ## Outside Influence
-This project has recently influenced the CPU/GPU power related metric gathering on [NeoAsitop](https://github.com/op06072/NeoAsitop)! Yay! Go check it out :heart:
+This project managed to reach influence into the IOReport related metric gathering on [NeoAsitop](https://github.com/op06072/NeoAsitop).
 
 ## Compatibility Notes
-Here's a sick table. Depending on what Apple decides to break, it doesn't mean anything. How cool is that?
-| Silicon | Codename | Support Status |
-|----|---|---|
-| M1 | t8103 | Fully working |
-| M1 Pro | t6000 | Works (But no tests for binned 8-Core model) |
-| M1 Max | t6001 | Fully working |
-| M1 Ultra | t6002 | Should work maybe? (see [#5](https://github.com/dehydratedpotato/socpowerbud/issues/5) and patch [v0.3.1](https://github.com/dehydratedpotato/socpowerbud/releases/tag/v0.3.1)) |
-| M2 | t8112 | Should work? |
-| M2 Pro | t6020 | i dont know man |
-| M2 Max | t6021 | like for real |
+I'll try to get a better up to date table here some day in time, maybe. Apple breaks stuff a lot so I can't confirm anything. M1, M2, M3, M3 pro should work fine at least. It's usually Max and Ultras that have problem, or at least a chip with more than 1 cluster per CPU type in it.
+
 
 ## Contribution
 If any bugs or issues are found, please let me know in the [issues](https://github.com/dehydratedpotato/socpowerbud/issues) section. If the problem is related to missing IOReport entries, please share the output of the `iorepdump` tool found in the [latest release](https://github.com/dehydratedpotato/socpowerbud/releases/latest). Feel free to open a PR if you know what you're doing :smile:

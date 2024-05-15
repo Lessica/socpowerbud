@@ -1,6 +1,6 @@
 
 CC=clang
-CFLAGS=-fobjc-arc -funroll-loops -Ofast -arch arm64 -mmacosx-version-min=11.0
+CFLAGS=-fobjc-arc -funroll-loops -Ofast -arch arm64 -mmacosx-version-min=12.0
 LIBS=-lIOReport -framework Foundation -framework IOKit
 
 PROGS= socpwrbud

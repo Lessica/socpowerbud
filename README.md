@@ -20,7 +20,8 @@ Sudoless utility to profile average frequency, voltage, residency, and more on A
 - **Table of contents**
   - **[Project Deets](#project-deets)**
   - **[Example Output](#example-output)**
-  - [Features](#features)
+  - **[Features](#features)**
+  - **[Future Stuff](#future-stuff)**
   - **[Installation, Usage, and Making](#installation-usage-and-making)**
     - [Install using Homebrew](#install-using-homebrew)
     - [Install manually](#install-manually)
@@ -221,6 +222,11 @@ The following metrics are available sampled unit per-cluster:
 Per-core metrics of the same are available for the CPUs.
 
 I would love to support ANE stuff, there are remnants in `powermetrics` for gettig that data, but no real keys in IOReport for them. 
+
+# Future Stuff
+- I need to set back up homebrew
+- I need to add power consumption metrics again
+- I would like to report microarchs
 
 # Installation, Usage, and Making
 **Note:** Tool usage is listed by `socpwrbud -h`, or `--help` if you're a verbose kinda person.

@@ -6,6 +6,7 @@
 
 #import <Foundation/Foundation.h>
 #import <getopt.h>
+#import <IOKit/IOKitLib.h>
 #import <stdarg.h>
 #import <sys/sysctl.h>
 
@@ -148,18 +149,18 @@ static const char *long_opts_description[OPT_COUNT] = {
     "        report all available metrics for the visible units\n\n",
 };
 
-static const NSString *CPU_COMPLEX_PERF_STATES_SUBGROUP = @"CPU Complex Performance States";
-static const NSString *CPU_CORE_PERF_STATES_SUBGROUP = @"CPU Core Performance States";
-static const NSString *GPU_PERF_STATES_SUBGROUP = @"GPU Performance States";
+static NSString *const CPU_COMPLEX_PERF_STATES_SUBGROUP = @"CPU Complex Performance States";
+static NSString *const CPU_CORE_PERF_STATES_SUBGROUP = @"CPU Core Performance States";
+static NSString *const GPU_PERF_STATES_SUBGROUP = @"GPU Performance States";
 
-static const NSArray *performanceCounterKeys = @[ @"ECPU", @"PCPU", /* pleb chips (M1, M2, M3, M3 Pro) */
-                                                  @"ECPU0", @"PCPU0", @"PCPU1", /* Max Chips */
-                                                  @"EACC_CPU", @"PACC0_CPU", @"PACC1_CPU" /* Ultra Chips */];
+static NSArray<NSString *> *const performanceCounterKeys = @[ @"ECPU", @"PCPU", /* pleb chips (M1, M2, M3, M3 Pro) */
+                                                              @"ECPU0", @"PCPU0", @"PCPU1", /* Max Chips */
+                                                              @"EACC_CPU", @"PACC0_CPU", @"PACC1_CPU" /* Ultra Chips */];
 
-static NSString *P_STATE = @"P";
-static NSString *V_STATE = @"V";
-static NSString *IDLE_STATE = @"IDLE";
-static NSString *OFF_STATE = @"OFF";
+static NSString *const P_STATE = @"P";
+static NSString *const V_STATE = @"V";
+static NSString *const IDLE_STATE = @"IDLE";
+static NSString *const OFF_STATE = @"OFF";
 
 typedef struct cmd_data {
     int interval; /* sleep time between samples */
@@ -179,14 +180,16 @@ typedef struct cmd_data {
     } flags;
 } cmd_data;
 
-typedef struct stats {
+__attribute__((visibility("hidden")))
+@interface TRSocStat : NSObject {
+@public
     NSString *name;
 
-    NSMutableArray *childrenAray;
-    NSMutableDictionary *childrenDictionary;
+    NSMutableArray *childArray;
+    NSMutableDictionary *childDictionary;
 
-    NSArray *dvfs;
-    float *pstate_distribution;
+    NSArray<NSArray<NSNumber *> *> *dvfs;
+    NSMutableArray<NSNumber *> *pstate_distribution;
 
     uint32_t is_in_use;
     uint32_t state_count;
@@ -195,9 +198,13 @@ typedef struct stats {
     float mvolts;
     float active;
     float idle;
-} stats;
+}
+@end
 
-NSString * getPlatformName(void) {
+@implementation TRSocStat
+@end
+
+static NSString * getPlatformName(void) {
     io_registry_entry_t entry;
     io_iterator_t iter;
 
@@ -223,9 +230,9 @@ NSString * getPlatformName(void) {
 
         if (data != nil) {
             NSData *formattedData = (NSData *)CFBridgingRelease(data);
-            const unsigned char *databytes = [formattedData bytes];
+            const unsigned char *dataBytes = [formattedData bytes];
 
-            platfromName = [[NSString stringWithFormat:@"%s", databytes] capitalizedString];
+            platfromName = [[NSString stringWithFormat:@"%s", dataBytes] capitalizedString];
 
             formattedData = nil;
         }
@@ -288,20 +295,23 @@ static void makeDvfsTables(NSMutableArray *ecpu_table, NSMutableArray *pcpu_tabl
     IOObjectRelease(iter);
 }
 
-stats * makeStats(NSString *name, NSArray *dvfs) {
-    stats *stat = malloc(sizeof(stats));
+static TRSocStat * makeStats(NSString *name, NSArray *dvfs) {
+    TRSocStat *stat = [[TRSocStat alloc] init];
 
     stat->name = name;
     stat->dvfs = dvfs;
     stat->state_count = (uint32_t)[stat->dvfs count];
 
     int pstate_distribution_size = stat->state_count * sizeof(float);
-    stat->pstate_distribution = malloc(pstate_distribution_size);
+    stat->pstate_distribution = [[NSMutableArray alloc] initWithCapacity:pstate_distribution_size];
+
+    while (pstate_distribution_size--)
+        [stat->pstate_distribution addObject:@0];
 
     return stat;
 }
 
-NSMutableDictionary * filterChannelAndConstructCollection(CFMutableDictionaryRef channel) {
+static NSMutableDictionary * filterChannelAndConstructCollection(CFMutableDictionaryRef channel) {
     NSMutableArray *ecpuDvfs = [[NSMutableArray alloc] init];
     NSMutableArray *pcpuDvfs = [[NSMutableArray alloc] init];
     NSMutableArray *gpuDvfs = [[NSMutableArray alloc] init];
@@ -315,13 +325,13 @@ NSMutableDictionary * filterChannelAndConstructCollection(CFMutableDictionaryRef
         CFDictionaryRef dict = CFArrayGetValueAtIndex(array, i);
         NSString *subgroup = CFDictionaryGetValue(dict, CFSTR("IOReportSubGroupName"));
 
-        if ([subgroup isNotEqualTo:CPU_CORE_PERF_STATES_SUBGROUP]) {
-            if ([subgroup isEqual:CPU_COMPLEX_PERF_STATES_SUBGROUP]) {
+        if (![subgroup isEqualToString:CPU_CORE_PERF_STATES_SUBGROUP]) {
+            if ([subgroup isEqualToString:CPU_COMPLEX_PERF_STATES_SUBGROUP]) {
                 CFArrayRef legendChannel = (CFArrayRef)CFDictionaryGetValue(dict, CFSTR("LegendChannel"));
                 NSString *channelName = CFArrayGetValueAtIndex(legendChannel, 2);
 
                 if (![channelName containsString:@"CPM"]) {
-                    stats *stat;
+                    TRSocStat *stat;
 
                     if ([channelName containsString:@"E"]) {
                         stat = makeStats(channelName, ecpuDvfs);
@@ -329,22 +339,18 @@ NSMutableDictionary * filterChannelAndConstructCollection(CFMutableDictionaryRef
                         stat = makeStats(channelName, pcpuDvfs);
                     }
 
-                    stat->childrenAray = [[NSMutableArray alloc] init];
-                    stat->childrenDictionary = [[NSMutableDictionary alloc] init];
+                    stat->childArray = [[NSMutableArray alloc] init];
+                    stat->childDictionary = [[NSMutableDictionary alloc] init];
 
-                    NSValue *pointer = [NSValue valueWithPointer:stat];
-
-                    [collection setValue:pointer forKey:channelName];
+                    [collection setObject:stat forKey:channelName];
                 }
 
                 channelName = nil;
-            } else if ([subgroup isEqual:GPU_PERF_STATES_SUBGROUP]) {
+            } else if ([subgroup isEqualToString:GPU_PERF_STATES_SUBGROUP]) {
                 NSString *channelName = @"GPUPH";
 
-                stats *stat = makeStats(channelName, gpuDvfs);
-                NSValue *pointer = [NSValue valueWithPointer:stat];
-
-                [collection setValue:pointer forKey:channelName];
+                TRSocStat *stat = makeStats(channelName, gpuDvfs);
+                [collection setObject:stat forKey:channelName];
 
                 channelName = nil;
             } else {
@@ -358,17 +364,16 @@ NSMutableDictionary * filterChannelAndConstructCollection(CFMutableDictionaryRef
     IOReportIterate(channel, ^int (CFDictionaryRef channel) {
         NSString *subgroup = IOReportChannelGetSubGroup(channel);
 
-        if ([subgroup isNotEqualTo:CPU_CORE_PERF_STATES_SUBGROUP]) {
+        if (![subgroup isEqualToString:CPU_CORE_PERF_STATES_SUBGROUP]) {
             return 0;
         }
 
         NSString *channelName = IOReportChannelGetChannelName(channel);
         NSString *parentName = [channelName substringToIndex:[channelName length] - 1];
-        NSValue *value = [collection valueForKey:parentName];
+        TRSocStat *parent = [collection objectForKey:parentName];
 
-        if (value != nil) {
-            stats *parent = (stats *)[value pointerValue];
-            stats *core;
+        if (parent != nil) {
+            TRSocStat *core;
 
             if ([channelName containsString:@"E"]) {
                 core = makeStats(channelName, ecpuDvfs);
@@ -376,10 +381,8 @@ NSMutableDictionary * filterChannelAndConstructCollection(CFMutableDictionaryRef
                 core = makeStats(channelName, pcpuDvfs);
             }
 
-            NSValue *pointer = [NSValue valueWithPointer:core];
-
-            [parent->childrenAray addObject:pointer];
-            [parent->childrenDictionary setValue:pointer forKey:channelName];
+            [parent->childArray addObject:core];
+            [parent->childDictionary setObject:core forKey:channelName];
         }
 
         channelName = nil;
@@ -391,7 +394,7 @@ NSMutableDictionary * filterChannelAndConstructCollection(CFMutableDictionaryRef
     return collection;
 }
 
-void update(stats *stat, CFDictionaryRef channel) {
+static void update(TRSocStat *stat, CFDictionaryRef channel) {
     uint64_t idle_residency = IOReportStateGetResidency(channel, 0);
     uint64_t residencies_sum = 0;
 
@@ -402,7 +405,7 @@ void update(stats *stat, CFDictionaryRef channel) {
         if ([indexName containsString:P_STATE] || [indexName containsString:V_STATE]) {
             residencies_sum += residency;
 
-            stat->pstate_distribution[i] = (float)residency;
+            stat->pstate_distribution[i] = @((float)residency);
         }
 
         indexName = nil;
@@ -418,16 +421,16 @@ void update(stats *stat, CFDictionaryRef channel) {
             break;
         }
 
-        NSArray *state = stat->dvfs[i];
+        NSArray<NSNumber *> *state = stat->dvfs[i];
 
-        float distribtion = stat->pstate_distribution[i] * multiplier;
+        float distribtion = [stat->pstate_distribution[i] floatValue] * multiplier;
         float freq = distribtion * [state[0] floatValue];
         float mvolt = distribtion * [state[1] floatValue];
 
         freq_sum += freq;
         mvolt_sum += mvolt;
 
-        stat->pstate_distribution[i] = distribtion;
+        stat->pstate_distribution[i] = @(distribtion);
     }
 
     uint64_t complete_sum = residencies_sum + idle_residency;
@@ -446,28 +449,25 @@ void update(stats *stat, CFDictionaryRef channel) {
     stat->is_in_use = stat->idle != 0;
 }
 
-void updateLoop(NSMutableDictionary *collection, CFDictionaryRef sample) {
+static void updateLoop(NSDictionary *collection, CFDictionaryRef sample) {
     IOReportIterate(sample, ^int (CFDictionaryRef channel) {
         NSString *subgroup = IOReportChannelGetSubGroup(channel);
         NSString *channelName = IOReportChannelGetChannelName(channel);
 
-        if ([subgroup isEqual:CPU_COMPLEX_PERF_STATES_SUBGROUP] || [subgroup isEqual:GPU_PERF_STATES_SUBGROUP]) {
-            NSValue *value = [collection valueForKey:channelName];
+        if ([subgroup isEqualToString:CPU_COMPLEX_PERF_STATES_SUBGROUP] || [subgroup isEqualToString:GPU_PERF_STATES_SUBGROUP]) {
+            TRSocStat *parent = [collection objectForKey:channelName];
 
-            if (value != nil) {
-                stats *parent = (stats *)[value pointerValue];
+            if (parent != nil) {
                 update(parent, channel);
             }
-        } else if ([subgroup isEqual:CPU_CORE_PERF_STATES_SUBGROUP]) {
+        } else if ([subgroup isEqualToString:CPU_CORE_PERF_STATES_SUBGROUP]) {
             NSString *parentName = [channelName substringToIndex:[channelName length] - 1];
-            NSValue *value = [collection valueForKey:parentName];
+            TRSocStat *parent = [collection objectForKey:parentName];
 
-            if (value != nil) {
-                stats *parent = (stats *)[value pointerValue];
-                NSValue *value = [parent->childrenDictionary valueForKey:channelName];
+            if (parent != nil) {
+                TRSocStat *core = [parent->childDictionary objectForKey:channelName];
 
-                if (value != nil) {
-                    stats *core = (stats *)[value pointerValue];
+                if (core != nil) {
                     update(core, channel);
                 }
             }
@@ -480,11 +480,9 @@ void updateLoop(NSMutableDictionary *collection, CFDictionaryRef sample) {
     });
 }
 
-void print(NSDictionary *collection, cmd_data *cmd) {
+static void print(NSDictionary *collection, cmd_data *cmd) {
     for (NSString *key in collection) {
-        NSValue *value = [collection objectForKey:key];
-
-        stats *parent = (stats *)[value pointerValue];
+        TRSocStat *parent = [collection objectForKey:key];
 
         if (([parent->name containsString:@"E"] && cmd->flags.hide_ecpu) ||
             ([parent->name containsString:@"P"] && cmd->flags.hide_pcpu) ||
@@ -492,18 +490,18 @@ void print(NSDictionary *collection, cmd_data *cmd) {
             continue;
         }
 
-        if ([parent->name isEqualTo:@"GPUPH"]) {
+        if ([parent->name isEqualToString:@"GPUPH"]) {
             fprintf(stdout, "Integrated Graphics \n");
         } else {
-            fprintf(stdout, "%ld-Core %s\n", [parent->childrenAray count], parent->name.UTF8String);
+            fprintf(stdout, "%ld-Core %s\n", [parent->childArray count], parent->name.UTF8String);
         }
 
         if (cmd->flags.show_freq) {
-            fprintf(stdout, "    Average frequency: %.0f mhz\n", parent->freq);
+            fprintf(stdout, "    Average frequency: %.0f mHz\n", parent->freq);
         }
 
         if (cmd->flags.show_volts) {
-            fprintf(stdout, "    Average voltage:   %.0f mv\n", parent->mvolts);
+            fprintf(stdout, "    Average voltage:   %.0f mV\n", parent->mvolts);
         }
 
         if (cmd->flags.show_active) {
@@ -520,42 +518,40 @@ void print(NSDictionary *collection, cmd_data *cmd) {
             int counter = 0;
 
             for (int i = 0; i < parent->state_count; i++) {
-                float value = parent->pstate_distribution[i] * 100;
+                float value = [parent->pstate_distribution[i] floatValue] * 100;
 
                 if (value > 0.009) {
-                    fprintf(stdout, "        %.f MHz", [parent->dvfs[i][0] floatValue]);
+                    fprintf(stdout, "        %.f mHz", [parent->dvfs[i][0] floatValue]);
 
                     if (cmd->flags.show_dvfs_volts) {
-                        fprintf(stdout, " (%.f mv)", [parent->dvfs[i][1] floatValue]);
+                        fprintf(stdout, " (%.f mV)", [parent->dvfs[i][1] floatValue]);
                     }
 
-                    fprintf(stdout, ": %.2f%%\n", value);
+                    fprintf(stdout, ": %.2f %%\n", value);
 
                     counter++;
                 }
             }
 
             if (counter == 0) {
-                fprintf(stdout, "        none");
+                fprintf(stdout, "        none\n");
             }
 
             printf("\n");
         }
 
-        if (parent->childrenAray != nil && parent->childrenDictionary != nil && cmd->flags.show_percore) {
-            for (int i = 0; i < [parent->childrenAray count]; i++) {
-                NSValue *value = parent->childrenAray[i];
-
-                stats *core = (stats *)[value pointerValue];
+        if (parent->childArray != nil && parent->childDictionary != nil && cmd->flags.show_percore) {
+            for (int i = 0; i < [parent->childArray count]; i++) {
+                TRSocStat *core = parent->childArray[i];
 
                 fprintf(stdout, "    Core #%d\n", i);
 
                 if (cmd->flags.show_freq) {
-                    fprintf(stdout, "        Average frequency: %.0f mhz\n", core->freq);
+                    fprintf(stdout, "        Average frequency: %.0f mHz\n", core->freq);
                 }
 
                 if (cmd->flags.show_volts) {
-                    fprintf(stdout, "        Average voltage:   %.0f mv\n", core->mvolts);
+                    fprintf(stdout, "        Average voltage:   %.0f mV\n", core->mvolts);
                 }
 
                 if (cmd->flags.show_active) {
@@ -572,23 +568,23 @@ void print(NSDictionary *collection, cmd_data *cmd) {
                     int counter = 0;
 
                     for (int i = 0; i < core->state_count; i++) {
-                        float value = core->pstate_distribution[i] * 100;
+                        float value = [core->pstate_distribution[i] floatValue] * 100;
 
                         if (value > 0.009) {
-                            fprintf(stdout, "            %.f MHz", [parent->dvfs[i][0] floatValue]);
+                            fprintf(stdout, "            %.f mHz", [parent->dvfs[i][0] floatValue]);
 
                             if (cmd->flags.show_dvfs_volts) {
                                 fprintf(stdout, " (%.f mv)", [parent->dvfs[i][1] floatValue]);
                             }
 
-                            fprintf(stdout, ": %.2f%%\n", value);
+                            fprintf(stdout, ": %.2f %%\n", value);
 
                             counter++;
                         }
                     }
 
                     if (counter == 0) {
-                        fprintf(stdout, "            none");
+                        fprintf(stdout, "            none\n");
                     }
                 }
 
@@ -598,13 +594,18 @@ void print(NSDictionary *collection, cmd_data *cmd) {
     }
 }
 
-char * getSocName(void) {
-    size_t len = 32;
-    char *cpubrand = malloc(len);
+static NSString * getSocName(void) {
+    size_t len;
 
-    sysctlbyname("machdep.cpu.brand_string", cpubrand, &len, NULL, 0);
+    sysctlbyname("machdep.cpu.brand_string", NULL, &len, NULL, 0);
 
-    return cpubrand;
+    char *cpuBrand = malloc(len);
+    sysctlbyname("machdep.cpu.brand_string", cpuBrand, &len, NULL, 0);
+
+    NSString *brand = [NSString stringWithUTF8String:cpuBrand];
+    free(cpuBrand);
+
+    return brand;
 }
 
 static void help(void) {
@@ -646,150 +647,168 @@ static void error(int exitcode, const char *format, ...) {
     va_list args;
 
     fprintf(stderr, "%s:\033[0;31m error:\033[0m\e[0m ", getprogname());
+
     va_start(args, format);
     vfprintf(stderr, format, args);
     va_end(args);
     fprintf(stderr, "\n");
+
     exit(exitcode);
 }
 
 int main(int argc, char *argv[]) {
-    char *socName = getSocName();
-    NSString *platformName = getPlatformName();
+    @autoreleasepool {
+        NSString *socName = getSocName();
+        NSString *platformName = getPlatformName();
 
-    CFMutableDictionaryRef subscriptionChannel = nil;
-    CFMutableDictionaryRef cpuChannel = IOReportCopyChannelsInGroup(@"CPU Stats", nil, 0, 0, 0);
-    CFMutableDictionaryRef gpuChannel = IOReportCopyChannelsInGroup(@"GPU Stats", nil, 0, 0, 0);
+        CFMutableDictionaryRef subscriptionChannel = nil;
+        CFMutableDictionaryRef cpuChannel = IOReportCopyChannelsInGroup(@"CPU Stats", nil, 0, 0, 0);
+        CFMutableDictionaryRef gpuChannel = IOReportCopyChannelsInGroup(@"GPU Stats", nil, 0, 0, 0);
 
-    IOReportMergeChannels(cpuChannel, gpuChannel, nil);
+        IOReportMergeChannels(cpuChannel, gpuChannel, nil);
 
-    CFMutableDictionaryRef channel = CFDictionaryCreateMutableCopy(kCFAllocatorDefault, CFDictionaryGetCount(cpuChannel), cpuChannel);
-    NSMutableDictionary *collection = filterChannelAndConstructCollection(channel);
+        CFMutableDictionaryRef channel = CFDictionaryCreateMutableCopy(kCFAllocatorDefault, CFDictionaryGetCount(cpuChannel), cpuChannel);
+        NSMutableDictionary *collection = filterChannelAndConstructCollection(channel);
 
-    IOReportSubscriptionRef subscription = IOReportCreateSubscription(NULL, channel, &subscriptionChannel, 0, nil);
+        IOReportSubscriptionRef subscription = IOReportCreateSubscription(NULL, channel, &subscriptionChannel, 0, nil);
 
-    cmd_data *cmd = malloc(sizeof(cmd_data));
-
-    init_cmd_data(cmd);
-
-    NSString *active_metrics_str = nil;
-    NSArray *active_metrics_list = nil;
-    NSString *hide_units_str = nil;
-    NSArray *hide_units_list = nil;
-
-    int opt = 0;
-    int optindex = 0;
-
-    while ((opt = getopt_long(argc, argv, "hvi:s:po:m:H:wga", long_opts, &optindex)) != -1) {
-        switch (opt) {
-            case '?':
-            case 'h':
-                help();
-
-            case 'v':
-                printf("%s %s (build %s %s)\n", getprogname(), TOOL_VERSION, __DATE__, __TIME__);
-                return 0;
-
-            case 'i':
-                cmd->interval = atoi(optarg);
-
-                if (cmd->interval < 1) {
-                    cmd->interval = 1;
-                }
-
-                break;
-
-            case 's':
-                cmd->samples = atoi(optarg);
-
-                if (cmd->samples <= 0) {
-                    cmd->samples = -1;
-                }
-
-                break;
-
-            case 'm':
-                active_metrics_str = [NSString stringWithFormat:@"%s", strdup(optarg)];
-                active_metrics_list = [active_metrics_str componentsSeparatedByString:@","];
-                active_metrics_str = nil;
-
-                memset(&cmd->flags, 0, sizeof(cmd->flags));
-
-                for (int i = 0; i < [active_metrics_list count]; i++) {
-                    NSString *string = [active_metrics_list[i] lowercaseString];
-
-                    if ([string isEqual:[NSString stringWithUTF8String:METRIC_ACTIVE]]) {
-                        cmd->flags.show_active = true;
-                    } else if ([string isEqual:[NSString stringWithUTF8String:METRIC_IDLE]]) {
-                        cmd->flags.show_idle = true;
-                    } else if ([string isEqual:[NSString stringWithUTF8String:METRIC_FREQ]]) {
-                        cmd->flags.show_freq = true;
-                    } else if ([string isEqual:[NSString stringWithUTF8String:METRIC_VOLTS]]) {
-                        cmd->flags.show_volts = true;
-                    } else if ([string isEqual:[NSString stringWithUTF8String:METRIC_CORES]]) {
-                        cmd->flags.show_percore = true;
-                    } else if ([string isEqual:[NSString stringWithUTF8String:METRIC_DVFS]]) {
-                        cmd->flags.show_dvfs = true;
-                    } else if ([string isEqual:[NSString stringWithUTF8String:METRIC_DVFSVOLTS]]) {
-                        cmd->flags.show_dvfs_volts = true;
-                    } else {
-                        error(1, "Incorrect metric option \"%s\" in list", [string UTF8String]);
-                    }
-                }
-
-                active_metrics_list = nil;
-                break;
-
-            case 'H':
-                hide_units_str = [NSString stringWithFormat:@"%s", strdup(optarg)];
-                hide_units_list = [hide_units_str componentsSeparatedByString:@","];
-                hide_units_str = nil;
-
-                for (int i = 0; i < [hide_units_list count]; i++) {
-                    NSString *string = [hide_units_list[i] lowercaseString];
-
-                    if ([string isEqual:@"ecpu"]) {
-                        cmd->flags.hide_ecpu = true;
-                    } else if ([string isEqual:@"pcpu"]) {
-                        cmd->flags.hide_pcpu = true;
-                    } else if ([string isEqual:@"gpu"]) {
-                        cmd->flags.hide_gpu = true;
-                    } else {
-                        error(1, "Incorrect unit option \"%s\" in list", [string UTF8String]);
-                    }
-                }
-
-                hide_units_list = nil;
-                break;
-
-            case 'a':
-                cmd->flags.show_active = true;
-                cmd->flags.show_idle = true;
-                cmd->flags.show_freq = true;
-                cmd->flags.show_volts = true;
-                cmd->flags.show_dvfs = true;
-                cmd->flags.show_dvfs_volts = true;
-                cmd->flags.show_percore = true;
-                break;
+        if (!subscription) {
+            error(EXIT_FAILURE, "Failed to create IOReport subscription");
         }
+
+        static cmd_data globalCmd;
+        cmd_data *cmd = &globalCmd;
+        init_cmd_data(cmd);
+
+        NSString *active_metrics_str = nil;
+        NSArray *active_metrics_list = nil;
+        NSString *hide_units_str = nil;
+        NSArray *hide_units_list = nil;
+
+        int opt = 0;
+        int optindex = 0;
+
+        while ((opt = getopt_long(argc, argv, "hvi:s:po:m:H:wga", long_opts, &optindex)) != -1) {
+            switch (opt) {
+                case '?':
+                case 'h':
+                    help();
+
+                case 'v':
+                    printf("%s %s (build %s %s)\n", getprogname(), TOOL_VERSION, __DATE__, __TIME__);
+                    return EXIT_SUCCESS;
+
+                case 'i':
+                    cmd->interval = atoi(optarg);
+
+                    if (cmd->interval < 1) {
+                        cmd->interval = 1;
+                    }
+
+                    break;
+
+                case 's':
+                    cmd->samples = atoi(optarg);
+
+                    if (cmd->samples <= 0) {
+                        cmd->samples = -1;
+                    }
+
+                    break;
+
+                case 'm':
+                    active_metrics_str = [NSString stringWithFormat:@"%s", strdup(optarg)];
+                    active_metrics_list = [active_metrics_str componentsSeparatedByString:@","];
+                    active_metrics_str = nil;
+
+                    memset(&cmd->flags, 0, sizeof(cmd->flags));
+
+                    for (int i = 0; i < [active_metrics_list count]; i++) {
+                        NSString *string = [active_metrics_list[i] lowercaseString];
+
+                        if ([string isEqualToString:[NSString stringWithUTF8String:METRIC_ACTIVE]]) {
+                            cmd->flags.show_active = true;
+                        } else if ([string isEqualToString:[NSString stringWithUTF8String:METRIC_IDLE]]) {
+                            cmd->flags.show_idle = true;
+                        } else if ([string isEqualToString:[NSString stringWithUTF8String:METRIC_FREQ]]) {
+                            cmd->flags.show_freq = true;
+                        } else if ([string isEqualToString:[NSString stringWithUTF8String:METRIC_VOLTS]]) {
+                            cmd->flags.show_volts = true;
+                        } else if ([string isEqualToString:[NSString stringWithUTF8String:METRIC_CORES]]) {
+                            cmd->flags.show_percore = true;
+                        } else if ([string isEqualToString:[NSString stringWithUTF8String:METRIC_DVFS]]) {
+                            cmd->flags.show_dvfs = true;
+                        } else if ([string isEqualToString:[NSString stringWithUTF8String:METRIC_DVFSVOLTS]]) {
+                            cmd->flags.show_dvfs_volts = true;
+                        } else {
+                            error(EXIT_FAILURE, "Incorrect metric option \"%s\" in list", [string UTF8String]);
+                        }
+                    }
+
+                    active_metrics_list = nil;
+                    break;
+
+                case 'H':
+                    hide_units_str = [NSString stringWithFormat:@"%s", strdup(optarg)];
+                    hide_units_list = [hide_units_str componentsSeparatedByString:@","];
+                    hide_units_str = nil;
+
+                    for (int i = 0; i < [hide_units_list count]; i++) {
+                        NSString *string = [hide_units_list[i] lowercaseString];
+
+                        if ([string isEqualToString:@"ecpu"]) {
+                            cmd->flags.hide_ecpu = true;
+                        } else if ([string isEqualToString:@"pcpu"]) {
+                            cmd->flags.hide_pcpu = true;
+                        } else if ([string isEqualToString:@"gpu"]) {
+                            cmd->flags.hide_gpu = true;
+                        } else {
+                            error(EXIT_FAILURE, "Incorrect unit option \"%s\" in list", [string UTF8String]);
+                        }
+                    }
+
+                    hide_units_list = nil;
+                    break;
+
+                case 'a':
+                    cmd->flags.show_active = true;
+                    cmd->flags.show_idle = true;
+                    cmd->flags.show_freq = true;
+                    cmd->flags.show_volts = true;
+                    cmd->flags.show_dvfs = true;
+                    cmd->flags.show_dvfs_volts = true;
+                    cmd->flags.show_percore = true;
+                    break;
+            }
+        }
+
+        fprintf(stdout, "Profiling %s (%s)...\n\n", socName.UTF8String, platformName.UTF8String);
+
+        for (; cmd->samples--;) {
+            @autoreleasepool {
+                CFDictionaryRef firstSample = IOReportCreateSamples(subscription, subscriptionChannel, NULL);
+                [NSThread sleepForTimeInterval:(float)cmd->interval * 1e-3];
+
+                CFDictionaryRef lastSample = IOReportCreateSamples(subscription, subscriptionChannel, NULL);
+                CFDictionaryRef sampleDelta = IOReportCreateSamplesDelta(firstSample, lastSample, NULL);
+
+                updateLoop(collection, sampleDelta);
+                print(collection, cmd);
+
+                if (firstSample) {
+                    CFRelease(firstSample);
+                }
+
+                if (lastSample) {
+                    CFRelease(lastSample);
+                }
+
+                if (sampleDelta) {
+                    CFRelease(sampleDelta);
+                }
+            }
+        }
+
+        return EXIT_SUCCESS;
     }
-
-    fprintf(stdout, "Profiling %s (%s)...\n\n", socName, platformName.UTF8String);
-
-    for (; cmd->samples--;) {
-        CFDictionaryRef firstSample = IOReportCreateSamples(subscription, subscriptionChannel, nil);
-        [NSThread sleepForTimeInterval:(float)cmd->interval * 1e-3];
-
-        CFDictionaryRef lastSample = IOReportCreateSamples(subscription, subscriptionChannel, nil);
-        CFDictionaryRef sampleDelta = IOReportCreateSamplesDelta(firstSample, lastSample, NULL);
-
-        updateLoop(collection, sampleDelta);
-        print(collection, cmd);
-
-        CFRelease(firstSample);
-        CFRelease(lastSample);
-        CFRelease(sampleDelta);
-    }
-
-    return 0;
 }

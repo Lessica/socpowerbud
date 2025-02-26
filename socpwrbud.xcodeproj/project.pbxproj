@@ -8,11 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		3F06F0632A27E9D400AF43E7 /* socpwrbud.m in Sources */ = {isa = PBXBuildFile; fileRef = 3F06F0622A27E9D400AF43E7 /* socpwrbud.m */; };
-		3F06F06A2A27E9EB00AF43E7 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 3F06F0692A27E9EB00AF43E7 /* Makefile */; };
-		3F06F06D2A27E9FE00AF43E7 /* libIOReport.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3F06F06C2A27E9FE00AF43E7 /* libIOReport.tbd */; };
 		3F06F0752A27EA0E00AF43E7 /* iorepdump.m in Sources */ = {isa = PBXBuildFile; fileRef = 3F06F0742A27EA0E00AF43E7 /* iorepdump.m */; };
-		3F06F07B2A27EAA300AF43E7 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 3F06F07A2A27EAA300AF43E7 /* Makefile */; };
-		3F06F07C2A27EAE800AF43E7 /* libIOReport.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 3F06F06C2A27E9FE00AF43E7 /* libIOReport.tbd */; };
+		615F9B262D6F294000AA86BC /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 615F9B252D6F294000AA86BC /* IOKit.framework */; };
+		615F9B272D6F294500AA86BC /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 615F9B252D6F294000AA86BC /* IOKit.framework */; };
+		615F9B292D6F29FC00AA86BC /* libIOReport.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 615F9B282D6F29F600AA86BC /* libIOReport.tbd */; };
+		615F9B2A2D6F2A1100AA86BC /* libIOReport.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 615F9B282D6F29F600AA86BC /* libIOReport.tbd */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -39,11 +39,11 @@
 /* Begin PBXFileReference section */
 		3F06F05F2A27E9D400AF43E7 /* socpwrbud */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = socpwrbud; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F06F0622A27E9D400AF43E7 /* socpwrbud.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = socpwrbud.m; sourceTree = "<group>"; };
-		3F06F0692A27E9EB00AF43E7 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		3F06F06C2A27E9FE00AF43E7 /* libIOReport.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libIOReport.tbd; path = usr/lib/libIOReport.tbd; sourceTree = SDKROOT; };
 		3F06F0722A27EA0E00AF43E7 /* iorepdump */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = iorepdump; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F06F0742A27EA0E00AF43E7 /* iorepdump.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = iorepdump.m; sourceTree = "<group>"; };
-		3F06F07A2A27EAA300AF43E7 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
+		615F9B252D6F294000AA86BC /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.2.sdk/System/Library/Frameworks/IOKit.framework; sourceTree = DEVELOPER_DIR; };
+		615F9B282D6F29F600AA86BC /* libIOReport.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libIOReport.tbd; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.2.sdk/usr/lib/libIOReport.tbd; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,7 +51,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3F06F06D2A27E9FE00AF43E7 /* libIOReport.tbd in Frameworks */,
+				615F9B292D6F29FC00AA86BC /* libIOReport.tbd in Frameworks */,
+				615F9B262D6F294000AA86BC /* IOKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -59,7 +60,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3F06F07C2A27EAE800AF43E7 /* libIOReport.tbd in Frameworks */,
+				615F9B2A2D6F2A1100AA86BC /* libIOReport.tbd in Frameworks */,
+				615F9B272D6F294500AA86BC /* IOKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -89,7 +91,6 @@
 			isa = PBXGroup;
 			children = (
 				3F06F0622A27E9D400AF43E7 /* socpwrbud.m */,
-				3F06F0692A27E9EB00AF43E7 /* Makefile */,
 			);
 			path = socpwrbud;
 			sourceTree = "<group>";
@@ -97,6 +98,8 @@
 		3F06F06B2A27E9FE00AF43E7 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				615F9B282D6F29F600AA86BC /* libIOReport.tbd */,
+				615F9B252D6F294000AA86BC /* IOKit.framework */,
 				3F06F06C2A27E9FE00AF43E7 /* libIOReport.tbd */,
 			);
 			name = Frameworks;
@@ -106,7 +109,6 @@
 			isa = PBXGroup;
 			children = (
 				3F06F0742A27EA0E00AF43E7 /* iorepdump.m */,
-				3F06F07A2A27EAA300AF43E7 /* Makefile */,
 			);
 			path = iorepdump;
 			sourceTree = "<group>";
@@ -155,7 +157,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastUpgradeCheck = 1420;
+				LastUpgradeCheck = 1620;
 				TargetAttributes = {
 					3F06F05E2A27E9D400AF43E7 = {
 						CreatedOnToolsVersion = 14.2;
@@ -189,7 +191,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3F06F06A2A27E9EB00AF43E7 /* Makefile in Sources */,
 				3F06F0632A27E9D400AF43E7 /* socpwrbud.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -198,7 +199,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3F06F07B2A27EAA300AF43E7 /* Makefile in Sources */,
 				3F06F0752A27EA0E00AF43E7 /* iorepdump.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -210,6 +210,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -239,9 +240,11 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -268,6 +271,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -297,9 +301,11 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -318,50 +324,74 @@
 		3F06F0672A27E9D400AF43E7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dehydratedpotato.socpwrbud;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos macosx";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
 		3F06F0682A27E9D400AF43E7 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dehydratedpotato.socpwrbud;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos macosx";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
 		3F06F0772A27EA0E00AF43E7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dehydratedpotato.iorepdump;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos macosx";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
 		3F06F0782A27EA0E00AF43E7 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dehydratedpotato.iorepdump;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos macosx";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};

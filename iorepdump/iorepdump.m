@@ -1,8 +1,8 @@
 //
 //  iorepdump.m
-//  socpwrbud (iorepdump)
+//  socpwrbud
 //
-//  Copyright (c) 2023 dehydratedpotato.
+//  Copyright (c) 2023 dehydratedpotato
 //
 
 #import <Foundation/Foundation.h>

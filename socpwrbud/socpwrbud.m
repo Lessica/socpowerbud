@@ -1,5 +1,6 @@
 //
-//  main.m - socpwrbud
+//  socpwrbud.m
+//  socpwrbud
 //
 //  Copyright (c) 2024 dehydratedpotato
 //
@@ -9,6 +10,10 @@
 #import <IOKit/IOKitLib.h>
 #import <stdarg.h>
 #import <sys/sysctl.h>
+
+#ifdef THEOS
+#define kIOMainPortDefault kIOMasterPortDefault
+#endif
 
 // External references for IOReport methods
 
@@ -153,9 +158,11 @@ static NSString *const CPU_COMPLEX_PERF_STATES_SUBGROUP = @"CPU Complex Performa
 static NSString *const CPU_CORE_PERF_STATES_SUBGROUP = @"CPU Core Performance States";
 static NSString *const GPU_PERF_STATES_SUBGROUP = @"GPU Performance States";
 
-static NSArray<NSString *> *const performanceCounterKeys = @[ @"ECPU", @"PCPU", /* pleb chips (M1, M2, M3, M3 Pro) */
-                                                              @"ECPU0", @"PCPU0", @"PCPU1", /* Max Chips */
-                                                              @"EACC_CPU", @"PACC0_CPU", @"PACC1_CPU" /* Ultra Chips */];
+static NSArray<NSString *> *const performanceCounterKeys = @[
+    @"ECPU", @"PCPU",                         /* pleb chips (M1, M2, M3, M3 Pro) */
+    @"ECPU0", @"PCPU0", @"PCPU1",             /* Max Chips */
+    @"EACC_CPU", @"PACC0_CPU", @"PACC1_CPU",  /* Ultra Chips */
+];
 
 static NSString *const P_STATE = @"P";
 static NSString *const V_STATE = @"V";
@@ -164,7 +171,7 @@ static NSString *const OFF_STATE = @"OFF";
 
 typedef struct cmd_data {
     int interval; /* sleep time between samples */
-    int samples; /* target samples to make */
+    int samples;  /* target samples to make */
 
     struct {
         bool hide_ecpu;
@@ -183,25 +190,66 @@ typedef struct cmd_data {
 __attribute__((visibility("hidden")))
 @interface TRSocStat : NSObject {
 @public
-    NSString *name;
+    NSString *_name;
 
-    NSMutableArray *childArray;
-    NSMutableDictionary *childDictionary;
+    NSMutableArray *_children;
+    NSMutableDictionary *_childrenMapping;
 
-    NSArray<NSArray<NSNumber *> *> *dvfs;
-    NSMutableArray<NSNumber *> *pstate_distribution;
+    NSArray<NSArray<NSNumber *> *> *_dvfs;
+    NSMutableArray<NSNumber *> *_pstate_distribution;
 
-    uint32_t is_in_use;
-    uint32_t state_count;
+    uint32_t _is_in_use;
+    uint32_t _state_count;
 
-    float freq;
-    float mvolts;
-    float active;
-    float idle;
+    float _freq;
+    float _mvolts;
+    float _active;
+    float _idle;
 }
+
+@property (nonatomic, copy, readonly) NSString *name;
+@property (nonatomic, assign, readonly) BOOL isInUse;
+
+@property (nonatomic, assign, readonly) float frequencyMHz;
+@property (nonatomic, assign, readonly) float millivolts;
+
+@property (nonatomic, assign, readonly) float activeResidency; // in percent
+@property (nonatomic, assign, readonly) float idleResidency;   // in percent
+
+- (NSArray<TRSocStat *> *)children;
+
 @end
 
 @implementation TRSocStat
+
+- (NSString *)name {
+    return _name;
+}
+
+- (BOOL)isInUse {
+    return _is_in_use;
+}
+
+- (float)frequencyMHz {
+    return _freq;
+}
+
+- (float)millivolts {
+    return _mvolts;
+}
+
+- (float)activeResidency {
+    return _active;
+}
+
+- (float)idleResidency {
+    return _idle;
+}
+
+- (NSArray<TRSocStat *> *)children {
+    return [_children copy];
+}
+
 @end
 
 static NSString * getPlatformName(void) {
@@ -298,15 +346,15 @@ static void makeDvfsTables(NSMutableArray *ecpu_table, NSMutableArray *pcpu_tabl
 static TRSocStat * makeStats(NSString *name, NSArray *dvfs) {
     TRSocStat *stat = [[TRSocStat alloc] init];
 
-    stat->name = name;
-    stat->dvfs = dvfs;
-    stat->state_count = (uint32_t)[stat->dvfs count];
+    stat->_name = name;
+    stat->_dvfs = dvfs;
+    stat->_state_count = (uint32_t)[stat->_dvfs count];
 
-    int pstate_distribution_size = stat->state_count * sizeof(float);
-    stat->pstate_distribution = [[NSMutableArray alloc] initWithCapacity:pstate_distribution_size];
+    int pstate_distribution_size = stat->_state_count * sizeof(float);
+    stat->_pstate_distribution = [[NSMutableArray alloc] initWithCapacity:pstate_distribution_size];
 
     while (pstate_distribution_size--)
-        [stat->pstate_distribution addObject:@0];
+        [stat->_pstate_distribution addObject:@0];
 
     return stat;
 }
@@ -339,8 +387,8 @@ static NSMutableDictionary * filterChannelAndConstructCollection(CFMutableDictio
                         stat = makeStats(channelName, pcpuDvfs);
                     }
 
-                    stat->childArray = [[NSMutableArray alloc] init];
-                    stat->childDictionary = [[NSMutableDictionary alloc] init];
+                    stat->_children = [[NSMutableArray alloc] init];
+                    stat->_childrenMapping = [[NSMutableDictionary alloc] init];
 
                     [collection setObject:stat forKey:channelName];
                 }
@@ -381,8 +429,8 @@ static NSMutableDictionary * filterChannelAndConstructCollection(CFMutableDictio
                 core = makeStats(channelName, pcpuDvfs);
             }
 
-            [parent->childArray addObject:core];
-            [parent->childDictionary setObject:core forKey:channelName];
+            [parent->_children addObject:core];
+            [parent->_childrenMapping setObject:core forKey:channelName];
         }
 
         channelName = nil;
@@ -398,14 +446,14 @@ static void update(TRSocStat *stat, CFDictionaryRef channel) {
     uint64_t idle_residency = IOReportStateGetResidency(channel, 0);
     uint64_t residencies_sum = 0;
 
-    for (int i = 1; i < stat->state_count; i++) {
+    for (int i = 1; i < stat->_state_count; i++) {
         NSString *indexName = IOReportStateGetNameForIndex(channel, i);
         uint64_t residency = IOReportStateGetResidency(channel, i);
 
         if ([indexName containsString:P_STATE] || [indexName containsString:V_STATE]) {
             residencies_sum += residency;
 
-            stat->pstate_distribution[i] = @((float)residency);
+            stat->_pstate_distribution[i] = @((float)residency);
         }
 
         indexName = nil;
@@ -416,37 +464,37 @@ static void update(TRSocStat *stat, CFDictionaryRef channel) {
 
     float multiplier = 1 / (float)residencies_sum;
 
-    for (int i = 1; i < stat->state_count; i++) {
+    for (int i = 1; i < stat->_state_count; i++) {
         if (residencies_sum == 0) {
             break;
         }
 
-        NSArray<NSNumber *> *state = stat->dvfs[i];
+        NSArray<NSNumber *> *state = stat->_dvfs[i];
 
-        float distribtion = [stat->pstate_distribution[i] floatValue] * multiplier;
+        float distribtion = [stat->_pstate_distribution[i] floatValue] * multiplier;
         float freq = distribtion * [state[0] floatValue];
         float mvolt = distribtion * [state[1] floatValue];
 
         freq_sum += freq;
         mvolt_sum += mvolt;
 
-        stat->pstate_distribution[i] = @(distribtion);
+        stat->_pstate_distribution[i] = @(distribtion);
     }
 
     uint64_t complete_sum = residencies_sum + idle_residency;
 
-    stat->freq = freq_sum;
-    stat->mvolts = mvolt_sum;
+    stat->_freq = freq_sum;
+    stat->_mvolts = mvolt_sum;
 
     if (complete_sum != 0) {
-        stat->active = ((float)residencies_sum / complete_sum) * 100;
-        stat->idle = ((float)idle_residency / complete_sum) * 100;
+        stat->_active = ((float)residencies_sum / complete_sum) * 100;
+        stat->_idle = ((float)idle_residency / complete_sum) * 100;
     } else {
-        stat->active = 0;
-        stat->idle = 0;
+        stat->_active = 0;
+        stat->_idle = 0;
     }
 
-    stat->is_in_use = stat->idle != 0;
+    stat->_is_in_use = stat->_idle != 0;
 }
 
 static void updateLoop(NSDictionary *collection, CFDictionaryRef sample) {
@@ -465,7 +513,7 @@ static void updateLoop(NSDictionary *collection, CFDictionaryRef sample) {
             TRSocStat *parent = [collection objectForKey:parentName];
 
             if (parent != nil) {
-                TRSocStat *core = [parent->childDictionary objectForKey:channelName];
+                TRSocStat *core = [parent->_childrenMapping objectForKey:channelName];
 
                 if (core != nil) {
                     update(core, channel);
@@ -484,32 +532,32 @@ static void print(NSDictionary *collection, cmd_data *cmd) {
     for (NSString *key in collection) {
         TRSocStat *parent = [collection objectForKey:key];
 
-        if (([parent->name containsString:@"E"] && cmd->flags.hide_ecpu) ||
-            ([parent->name containsString:@"P"] && cmd->flags.hide_pcpu) ||
-            ([parent->name containsString:@"G"] && cmd->flags.hide_gpu)) {
+        if (([parent->_name containsString:@"E"] && cmd->flags.hide_ecpu) ||
+            ([parent->_name containsString:@"P"] && cmd->flags.hide_pcpu) ||
+            ([parent->_name containsString:@"G"] && cmd->flags.hide_gpu)) {
             continue;
         }
 
-        if ([parent->name isEqualToString:@"GPUPH"]) {
+        if ([parent->_name isEqualToString:@"GPUPH"]) {
             fprintf(stdout, "Integrated Graphics \n");
         } else {
-            fprintf(stdout, "%ld-Core %s\n", [parent->childArray count], parent->name.UTF8String);
+            fprintf(stdout, "%ld-Core %s\n", [parent->_children count], parent->_name.UTF8String);
         }
 
         if (cmd->flags.show_freq) {
-            fprintf(stdout, "    Average frequency: %.0f mHz\n", parent->freq);
+            fprintf(stdout, "    Average frequency: %.0f mHz\n", parent->_freq);
         }
 
         if (cmd->flags.show_volts) {
-            fprintf(stdout, "    Average voltage:   %.0f mV\n", parent->mvolts);
+            fprintf(stdout, "    Average voltage:   %.0f mV\n", parent->_mvolts);
         }
 
         if (cmd->flags.show_active) {
-            fprintf(stdout, "    Active residency:  %.2f %%\n", parent->active);
+            fprintf(stdout, "    Active residency:  %.2f %%\n", parent->_active);
         }
 
         if (cmd->flags.show_idle) {
-            fprintf(stdout, "    Idle residency:    %.2f %%\n\n", parent->idle);
+            fprintf(stdout, "    Idle residency:    %.2f %%\n\n", parent->_idle);
         }
 
         if (cmd->flags.show_dvfs) {
@@ -517,14 +565,14 @@ static void print(NSDictionary *collection, cmd_data *cmd) {
 
             int counter = 0;
 
-            for (int i = 0; i < parent->state_count; i++) {
-                float value = [parent->pstate_distribution[i] floatValue] * 100;
+            for (int i = 0; i < parent->_state_count; i++) {
+                float value = [parent->_pstate_distribution[i] floatValue] * 100;
 
                 if (value > 0.009) {
-                    fprintf(stdout, "        %.f mHz", [parent->dvfs[i][0] floatValue]);
+                    fprintf(stdout, "        %.f mHz", [parent->_dvfs[i][0] floatValue]);
 
                     if (cmd->flags.show_dvfs_volts) {
-                        fprintf(stdout, " (%.f mV)", [parent->dvfs[i][1] floatValue]);
+                        fprintf(stdout, " (%.f mV)", [parent->_dvfs[i][1] floatValue]);
                     }
 
                     fprintf(stdout, ": %.2f %%\n", value);
@@ -540,26 +588,26 @@ static void print(NSDictionary *collection, cmd_data *cmd) {
             printf("\n");
         }
 
-        if (parent->childArray != nil && parent->childDictionary != nil && cmd->flags.show_percore) {
-            for (int i = 0; i < [parent->childArray count]; i++) {
-                TRSocStat *core = parent->childArray[i];
+        if (parent->_children != nil && parent->_childrenMapping != nil && cmd->flags.show_percore) {
+            for (int i = 0; i < [parent->_children count]; i++) {
+                TRSocStat *core = parent->_children[i];
 
                 fprintf(stdout, "    Core #%d\n", i);
 
                 if (cmd->flags.show_freq) {
-                    fprintf(stdout, "        Average frequency: %.0f mHz\n", core->freq);
+                    fprintf(stdout, "        Average frequency: %.0f mHz\n", core->_freq);
                 }
 
                 if (cmd->flags.show_volts) {
-                    fprintf(stdout, "        Average voltage:   %.0f mV\n", core->mvolts);
+                    fprintf(stdout, "        Average voltage:   %.0f mV\n", core->_mvolts);
                 }
 
                 if (cmd->flags.show_active) {
-                    fprintf(stdout, "        Active residency:  %.2f %%\n", core->active);
+                    fprintf(stdout, "        Active residency:  %.2f %%\n", core->_active);
                 }
 
                 if (cmd->flags.show_idle) {
-                    fprintf(stdout, "        Idle residency:    %.2f %%\n", core->idle);
+                    fprintf(stdout, "        Idle residency:    %.2f %%\n", core->_idle);
                 }
 
                 if (cmd->flags.show_dvfs) {
@@ -567,14 +615,14 @@ static void print(NSDictionary *collection, cmd_data *cmd) {
 
                     int counter = 0;
 
-                    for (int i = 0; i < core->state_count; i++) {
-                        float value = [core->pstate_distribution[i] floatValue] * 100;
+                    for (int i = 0; i < core->_state_count; i++) {
+                        float value = [core->_pstate_distribution[i] floatValue] * 100;
 
                         if (value > 0.009) {
-                            fprintf(stdout, "            %.f mHz", [parent->dvfs[i][0] floatValue]);
+                            fprintf(stdout, "            %.f mHz", [parent->_dvfs[i][0] floatValue]);
 
                             if (cmd->flags.show_dvfs_volts) {
-                                fprintf(stdout, " (%.f mv)", [parent->dvfs[i][1] floatValue]);
+                                fprintf(stdout, " (%.f mv)", [parent->_dvfs[i][1] floatValue]);
                             }
 
                             fprintf(stdout, ": %.2f %%\n", value);

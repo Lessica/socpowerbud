@@ -43,7 +43,6 @@
 		3F06F06C2A27E9FE00AF43E7 /* libIOReport.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libIOReport.tbd; path = usr/lib/libIOReport.tbd; sourceTree = SDKROOT; };
 		3F06F0722A27EA0E00AF43E7 /* iorepdump */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = iorepdump; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F06F0742A27EA0E00AF43E7 /* iorepdump.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = iorepdump.m; sourceTree = "<group>"; };
-		3F06F0792A27EA3100AF43E7 /* socpwrbud.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = socpwrbud.h; sourceTree = "<group>"; };
 		3F06F07A2A27EAA300AF43E7 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -90,7 +89,6 @@
 			isa = PBXGroup;
 			children = (
 				3F06F0622A27E9D400AF43E7 /* socpwrbud.m */,
-				3F06F0792A27EA3100AF43E7 /* socpwrbud.h */,
 				3F06F0692A27E9EB00AF43E7 /* Makefile */,
 			);
 			path = socpwrbud;
@@ -320,9 +318,11 @@
 		3F06F0672A27E9D400AF43E7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9BWZQ52AFK;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dehydratedpotato.socpwrbud;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -331,9 +331,11 @@
 		3F06F0682A27E9D400AF43E7 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9BWZQ52AFK;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dehydratedpotato.socpwrbud;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -343,8 +345,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9BWZQ52AFK;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dehydratedpotato.iorepdump;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -354,8 +357,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9BWZQ52AFK;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dehydratedpotato.iorepdump;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};

@@ -5,4 +5,4 @@ Architecture: iphoneos-arm
 Description: Sudoless alternative to powermetrics for Apple Silicon; realtime CPU & GPU frequency, volts, usage, etc.
 Maintainer: Lessica <82flex@gmail.com>
 Author: Lessica <82flex@gmail.com>
-Section: Tools
+Section: Utilities
